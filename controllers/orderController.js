@@ -1,61 +1,15 @@
 
+
+
+
+
+
+
 // const Order = require('../models/Order');
 // const { sendOrderNotification } = require('../utils/whatsapp');
-
-// // @POST /api/orders
-// // const placeOrder = async (req, res) => {
-// //   try {
-// //     const {
-// //       customerName,
-// //       customerPhone,
-// //       subtotal,
-// //       deliveryCharge,
-// //       totalAmount,
-// //       notes,
-// //     } = req.body;
-
-// //     //  FIX 1: Parse items — FormData sends it as a JSON string
-// //     const items = JSON.parse(req.body.items);
-
-// //     //  FIX 2: Parse deliveryAddress — same issue
-// //     const deliveryAddress = JSON.parse(req.body.deliveryAddress);
-
-// //     // Payment screenshot URL from Cloudinary
-// //     const paymentScreenshot = req.file ? req.file.path : null;
+// const { sendOrderEmail } = require('../utils/email'); // ✅ ADD THIS
 
 
-// //     const order = await Order.create({
-// //       customer: null,          // No user account linked
-// //       customerName,
-// //       customerPhone,
-// //       deliveryAddress,
-// //       items,
-// //       subtotal: Number(subtotal),
-// //       deliveryCharge: Number(deliveryCharge) || 0,
-// //       totalAmount: Number(totalAmount),
-// //       paymentScreenshot,
-// //       paymentStatus: paymentScreenshot ? 'screenshot_submitted' : 'pending',
-// //       notes,
-// //     });
-
-// //     // Send WhatsApp notification to owner
-// //     const sent = await sendOrderNotification(order);
-// //     if (sent) {
-// //       order.whatsappSent = true;
-// //       await order.save();
-// //     }
-
-// //     res.status(201).json({
-// //       success: true,
-// //       orderNumber: order.orderNumber,
-// //       _id: order._id,
-// //     });
-
-// //   } catch (error) {
-// //     console.error('Place order error:', error.message);
-// //     res.status(500).json({ message: error.message });
-// //   }
-// // };
 
 // const placeOrder = async (req, res) => {
 //   try {
@@ -91,6 +45,7 @@
 //     });
 
 //     const sent = await sendOrderNotification(order);
+//     await sendOrderEmail(order); // ✅ ADD THIS — runs alongside WhatsApp
 //     if (sent) { order.whatsappSent = true; await order.save(); }
 
 //     res.status(201).json({ success: true, orderNumber: order.orderNumber, _id: order._id });
@@ -134,41 +89,34 @@
 
 
 
-
-
 const Order = require('../models/Order');
 const { sendOrderNotification } = require('../utils/whatsapp');
-const { sendOrderEmail } = require('../utils/email'); // ✅ ADD THIS
+const { sendOrderEmail } = require('../utils/email');
 
-
-
+// @POST /api/orders
 const placeOrder = async (req, res) => {
   try {
     const {
-      customerName,
-      customerPhone,
-      subtotal,
-      deliveryCharge,
-      totalAmount,
-      notes,
-      paymentMethod,   // ✅ THIS WAS MISSING
+      customerName, customerPhone,
+      subtotal, deliveryCharge,
+      totalAmount, notes, paymentMethod,
     } = req.body;
 
     const items = JSON.parse(req.body.items);
-    const deliveryAddress = JSON.parse(req.body.deliveryAddress);
+    const deliveryAddress = JSON.parse(req.body.deliveryAddress); // includes coordinates if provided
     const paymentScreenshot = req.file ? req.file.path : null;
 
     const order = await Order.create({
-      customer: null,
+      customer: req.user ? req.user._id : null,  // ✅ link if logged in
       customerName,
       customerPhone,
-      deliveryAddress,
+      deliveryAddress,          // ✅ contains coordinates if auto-located
       items,
       subtotal: Number(subtotal),
       deliveryCharge: Number(deliveryCharge) || 0,
       totalAmount: Number(totalAmount),
       paymentScreenshot,
-      paymentMethod: paymentMethod || 'online',   // ✅ NOW SAVED CORRECTLY
+      paymentMethod: paymentMethod || 'online',
       paymentStatus: paymentMethod === 'cod'
         ? 'pending'
         : paymentScreenshot ? 'screenshot_submitted' : 'pending',
@@ -176,11 +124,10 @@ const placeOrder = async (req, res) => {
     });
 
     const sent = await sendOrderNotification(order);
-    await sendOrderEmail(order); // ✅ ADD THIS — runs alongside WhatsApp
+    await sendOrderEmail(order);
     if (sent) { order.whatsappSent = true; await order.save(); }
 
     res.status(201).json({ success: true, orderNumber: order.orderNumber, _id: order._id });
-
   } catch (error) {
     console.error('Place order error:', error.message);
     res.status(500).json({ message: error.message });
@@ -202,12 +149,6 @@ const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (
-      order.customer?.toString() !== req.user._id.toString() &&
-      req.user.role !== 'admin'
-    ) {
-      return res.status(403).json({ message: 'Not allowed' });
-    }
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
