@@ -26,6 +26,8 @@ app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes')); // NEW
+app.use('/api/coupons', require('./routes/couponRoutes'));   // ✅ NEW
+app.use('/api/settings', require('./routes/settingsRoutes')); // ✅ NEW
 app.get('/', (req, res) => res.send('Food Outlet API Running'));
 
 // ✅ Only listen locally, not on Vercel
