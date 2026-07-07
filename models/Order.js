@@ -103,6 +103,7 @@ const orderSchema = new mongoose.Schema({
     enum: ['online', 'cod'],
     default: 'online'
   },
+  estimatedDeliveryTime: { type: String, default: '30-45 mins' }, // ✅ NEW — saved per order
   couponCode: { type: String, default: null },
   discountAmount: { type: Number, default: 0 },
   orderStatus: {
